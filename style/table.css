@@ -1,0 +1,19 @@
+.kankan{color:red}
+.center{text-align: center}
+.progress{margin-bottom: 0}
+.myli{cursor: pointer}
+.myli:hover{background: #ccc}
+.center{white-space:nowrap;text-overflow:ellipsis;overflow: hidden;}
+.init{float: right;width:15px;display: block; margin-top: 2px}
+.init div:first-child{width: 0;height: 0;border-left: 5px solid transparent;border-right: 5px solid transparent;border-bottom: 6px solid #999999}
+.init div:last-child{width: 0;height: 0;border-left: 5px solid transparent;border-right: 5px solid transparent;border-top: 6px solid #999999;margin-top:3px;}
+.expand-transition {transition: all .5s ease;}
+.expand-enter, .expand-leave {height: 0;padding: 0 10px;opacity: 0}
+.pagination{margin: 0}
+.pagination li a{height: 32px}
+.cgcolor:hover{color: #dd5a43}
+#cd tr:first-child{border-top:0}
+[v-cloak]{ display:none}
+.myborder>.layui-layer-content,.myborder,.myborder>.layui-layer-title{border-radius:10px!important}
+.layui-layer-title{text-align: center}
+.pointer{cursor: pointer;}

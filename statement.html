@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="plugins/layui/css/layui.css">
+</head>
+<style>
+    .bord{border:1px solid #5FB878;}
+    .mychart_b1,.mychart_b2{width: 40%;height:400px;float:left;margin: 20px 2%}
+    .mychart_z1,.mychart_z2{width: 54%;height:400px;float:left;margin: 20px 1%}
+    .layui-layer-title{text-align: center;}
+    .myborder>.layui-layer-content,.myborder>.layui-layer-content>iframe,.myborder,.myborder>.layui-layer-title{
+        border-radius:10px!important;
+    }
+</style>
+    <body class="no-skin" style="overflow:auto">
+    <form class="layui-form" action="">
+        <!-- 时间条件 -->
+        <table style="min-width: 950px">
+            <tbody>
+            <tr>
+                <td>
+                    <div class="layui-form-item" style="margin-top: 15px">
+                        <label class="layui-form-label">日期：</label>
+                        <div class="layui-input-block" id="a1">
+                            <input type="checkbox" name="time" title="本日" value="day"  lay-filter="hhh" id="day">
+                            <input type="checkbox" name="time" title="本周" value="week"  lay-filter="hhh" id="week">
+                            <input type="checkbox" name="time" title="本月" value="month"  lay-filter="hhh" id="month" checked>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="layui-form-pane" style="margin-top: 15px;">
+                        <div class="layui-form-item">
+                            <div class="layui-input-inline">
+                                <input class="layui-input" placeholder="开始日" id="LAY_demorange_s" readonly="readonly">
+                            </div>
+                            <div class="layui-input-inline">
+                                <input class="layui-input" placeholder="截止日" id="LAY_demorange_e" readonly="readonly">
+                            </div>
+                            <label class="layui-form-label" style="width: 120px;cursor: pointer;" onclick="timecss()">获取该时间段报表</label>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <!-- 区域条件 -->
+        <table style="min-width: 950px">
+            <tbody>
+            <tr>
+                <td>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">区域：</label>
+                        <div class="layui-input-inline">
+                            <select name="province" lay-filter="province" id="province">
+                                <option value="">请选择省</option>
+                                    <option  value="${pro.code }" selected="">${pro.name}</option>
+                                </c:forEach>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="city" lay-filter="city" id="city">
+                                <option value="">请选择市</option>
+                                <c:forEach var="city" items="${cityList}" >
+                                    <option  value="${city.code }">${city.name}</option>
+                                </c:forEach>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="area" lay-filter="area" id="area">
+                                <option value="">请选择县/区</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline" style="width: 100px;padding-left: 30px">
+                            <button id="outexcel" class="layui-btn layui-btn-primary art_button" type="button">导出excel</button>
+                        </div>
+                        <div class="layui-input-inline" style="width: 90px">
+                            <button id="outpdf" class="layui-btn layui-btn-primary art_button" type="button">导出pdf</button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </form>
+    <div id="bin1" class="mychart_b1" ></div>
+    <div id="zhu1" class="mychart_z1" ></div>
+    <div id="bin2" class="mychart_b2" ></div>
+    <div id="zhu2" class="mychart_z2" ></div>
+    <!--提示框-->
+    </body>
+<script src="js/jquery.js"></script>
+<script type="text/javascript" src="plugins/layui/layui.js"></script>
+<script src="plugins/echarts/echarts-wisen.min.js"></script>
+<script>
+    //注册layui组件
+    layui.use(['form', 'layedit', 'laydate'], function(){
+
+        var [form,layer,layedit,laydate]=[layui.form() , layui.layui , layui.layedit , layui.laydate];
+
+        //起始日期设置
+        var start = {
+            isclear: true, //是否显示清空
+            istoday: false, //是否显示今天
+            format: 'YYYY-MM-DD',//时间格式
+            min: '1900-01-01 00:00:00',//最小时间
+            max: laydate.now(),
+            istime: false,
+            choose: function(datas){//选择回调
+                end.min = datas; //开始日选好后，重置结束日的最小日期
+                end.start = datas //将结束日的初始值设定为开始日
+            }
+        };
+        //结束日期设置
+        var end = {
+            max: laydate.now(),
+            min: '1900-01-01 00:00:00',
+            format: 'YYYY-MM-DD',
+            istoday: false,
+            istime: false,
+            choose: function(datas){
+                start.max = datas; //结束日选好后，重置开始日的最大日期
+            }
+        };
+        //启用时间选择
+        document.getElementById('LAY_demorange_s').onclick = function(){
+            start.elem = this;
+            laydate(start);
+        }
+        document.getElementById('LAY_demorange_e').onclick = function(){
+            end.elem = this
+            laydate(end);
+        }
+
+        //监听checkbox
+        form.on('checkbox(hhh)', function(data){
+            var id=data.elem.id;
+            $("input[name=time]").each(function() {
+                if(id!=this.id){
+                    $(this).attr("checked",false);
+                    $("#"+this.id+"+div").removeClass("layui-form-checked");
+                };
+            });
+            $('#LAY_demorange_e').removeClass('bord');
+            $('#LAY_demorange_s').removeClass('bord');
+            changeview();
+        });
+
+        //监听区域选择
+        //选择省
+        form.on('select(province)', function(data){
+            $("#city").html("<option value=''>请选择市</option>");
+            $("#area").html("<option value=''>请选择县/区</option>");
+            $.ajax({
+                type:"post",
+                url:"<%=basePath%>statement/threelev.do",
+                data:{"pro_id":data.value},
+                success:function(data){
+                    //添加城市数据
+                    var html="<option value=''>请选择市</option>";
+                    for(var i=0;i<data.length;i++){
+                        html+="<option value='"+data[i].code+"'>"+data[i].name+"</option>";
+                    }
+                    $("#city").html(html);
+                    //重新渲染select
+                    form.render('select');
+                },
+                error: function(XMLHttpRequest, textStatus, errorThrown) {
+                    alert('意外错误')
+                },
+            });
+            changeview();
+        });
+
+        //选择市
+        form.on('select(city)', function(data){
+            $("#area").html("<option value=''>请选择县/区</option>");
+            $.ajax({
+                type:"post",
+                url:"<%=basePath%>statement/threelev.do",
+                data:{"pro_id":data.value},
+                success:function(data){
+                    //添加城市数据
+                    var html="<option value=''>请选择县/区</option>";
+                    for(var i=0;i<data.length;i++){
+                        html+="<option value='"+data[i].code+"'>"+data[i].name+"</option>";
+                    }
+                    $("#area").html(html);
+                    //重新渲染select
+                    form.render('select');
+                },
+                error: function(XMLHttpRequest, textStatus, errorThrown) {
+                    alert('意外错误')
+                },
+
+            });
+            changeview();
+        });
+
+        //选择区
+        form.on('select(area)', function(data){
+            changeview();
+        });
+
+    });
+
+    //时间样式控制
+    function timecss() {
+        var start=$('#LAY_demorange_s').val(),end=$('#LAY_demorange_e').val();
+        if(start==''&&end==''){
+            $('#LAY_demorange_e').removeClass('bord');
+            $('#LAY_demorange_s').removeClass('bord');
+            // layer.msg('请先选择时间区间！', {time:2000});
+            // return false
+        }
+        if(start!=''&&end==''){
+            $('#LAY_demorange_s').addClass('bord');
+            $('#LAY_demorange_e').removeClass('bord');
+        }
+        if(end!=''&&start==''){
+            $('#LAY_demorange_e').addClass('bord');
+            $('#LAY_demorange_s').removeClass('bord');
+        }
+        if(start!=''&&end!=''){
+            $('#LAY_demorange_e').addClass('bord');
+            $('#LAY_demorange_s').addClass('bord');
+        }
+        $("#a1 div").removeClass("layui-form-checked");
+        $("input[name=time]").each(function() {
+            $(this).attr("checked",false);
+        });
+        //改变视图
+        changeview();
+    }
+
+    //交互参数获取
+    //时间数据
+    function gettime(){
+        var _time='',_starttime='',_endtime='';
+        //当按日周月拉取数据
+        $("input[name=time]").each(function() {
+            if(this.checked==true){_time=this.value}
+        });
+        if(_time!=''){return time=_time,starttime=_starttime,endtime=_endtime}else{
+            //按时间区间
+            _starttime=$('#LAY_demorange_s').hasClass('bord') ? $('#LAY_demorange_s').val() : '';
+            _endtime=$('#LAY_demorange_e').hasClass('bord') ? $('#LAY_demorange_e').val() : '';
+            return time=_time,starttime=_starttime,endtime=_endtime;
+        }
+    }
+    //区域数据
+    function getarea(){
+        var _areaCode='',_areaName='';
+        //由省开始逐级向下
+        if($('#province').val()!=''){_areaCode=$('#province').val();_areaName=$("#province").find("option:selected").text();};
+        if($('#city').val()!=''){_areaCode=$('#city').val();_areaName=$("#city").find("option:selected").text();};
+        if($('#area').val()!=''){_areaCode=$('#area').val();_areaName=$("#area").find("option:selected").text();};
+        return areaCode=_areaCode,areaName=_areaName;
+    }
+
+    //饼图1数据
+    var items_b1=[{failCount: 6, areaName: "安徽省", areaCode: "340000", successCount: 5}];
+
+    //柱图1数据
+    var items_z1=[{"bluetoothFailCount":2,"areaName":"合肥市","areaCode":"340100","bluetoothSuccessCount":4,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"芜湖市","areaCode":"340200","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"蚌埠市","areaCode":"340300","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"淮南市","areaCode":"340400","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"马鞍山市","areaCode":"340500","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"淮北市","areaCode":"340600","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"铜陵市","areaCode":"340700","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"安庆市","areaCode":"340800","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":4,"areaName":"黄山市","areaCode":"341000","bluetoothSuccessCount":1,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"滁州市","areaCode":"341100","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"阜阳市","areaCode":"341200","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"宿州市","areaCode":"341300","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"六安市","areaCode":"341500","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"亳州市","areaCode":"341600","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"池州市","areaCode":"341700","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0},{"bluetoothFailCount":0,"areaName":"宣城市","areaCode":"341800","bluetoothSuccessCount":0,"keySuccessCount":0,"keyFailCount":0}];
+    //数据生成函数
+    function make_z1msg(items_z1){
+        var items_z1Arr={name:new Array(),keySuccessCount:new Array(),keyFailCount:new Array(),bluetoothSuccessCount:new Array(),bluetoothFailCount:new Array()};
+        for(i=0; i<items_z1.length; i++){
+            items_z1Arr.name.push(items_z1[i].areaName);
+            items_z1Arr.keySuccessCount.push(items_z1[i].keySuccessCount);
+            items_z1Arr.keyFailCount.push(items_z1[i].keyFailCount);
+            items_z1Arr.bluetoothSuccessCount.push(items_z1[i].bluetoothSuccessCount);
+            items_z1Arr.bluetoothFailCount.push(items_z1[i].bluetoothFailCount);
+        };
+        return items_z1Arr
+    }
+
+    var items_z1Arr=make_z1msg(items_z1);
+
+    //饼图2数据
+    var items_b2=[{"areaName":"安徽省","areaCode":"340000","maintainCount":9,"projectCount":10239,"onlineCount":8,"outlineCount":10}];
+
+    //柱图2数据
+    var items_z2=[{"areaCode":"340000","sublevelStatusRate":[{"allCount":10266,"areaName":"合肥市","areaCode":"340100","maintainCount":9,"projectCount":10239,"onlineCount":8,"outlineCount":10},{"allCount":0,"areaName":"芜湖市","areaCode":"340200","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"蚌埠市","areaCode":"340300","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"淮南市","areaCode":"340400","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"马鞍山市","areaCode":"340500","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"淮北市","areaCode":"340600","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"铜陵市","areaCode":"340700","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"安庆市","areaCode":"340800","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"黄山市","areaCode":"341000","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"滁州市","areaCode":"341100","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"阜阳市","areaCode":"341200","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"宿州市","areaCode":"341300","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"六安市","areaCode":"341500","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"亳州市","areaCode":"341600","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"池州市","areaCode":"341700","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0},{"allCount":0,"areaName":"宣城市","areaCode":"341800","maintainCount":0,"projectCount":0,"onlineCount":0,"outlineCount":0}],"codeHand":"3418","code":"341800"}];
+    function make_z2msg(items_z2){
+        var items_z2Arr={name:new Array(),maintainCount:new Array(),onlineCount:new Array(),outlineCount:new Array(),projectCount:new Array()};
+        for(i=0; i<items_z2[0].sublevelStatusRate.length; i++){
+            items_z2Arr.name.push(items_z2[0].sublevelStatusRate[i].areaName);
+            items_z2Arr.maintainCount.push(items_z2[0].sublevelStatusRate[i].maintainCount);
+            items_z2Arr.onlineCount.push(items_z2[0].sublevelStatusRate[i].onlineCount);
+            items_z2Arr.outlineCount.push(items_z2[0].sublevelStatusRate[i].outlineCount);
+            items_z2Arr.projectCount.push(items_z2[0].sublevelStatusRate[i].projectCount);
+        };
+        return items_z2Arr
+    }
+    var items_z2Arr=make_z2msg(items_z2);
+    //设置两组提示用空数据
+    var _items_z1Arr={bluetoothFailCount:[0],bluetoothSuccessCount:[0],keyFailCount:[0],keySuccessCount:[0],name:['该区域下暂无更多分区,所以暂无数据']};
+    var _items_z2Arr={maintainCount:[0],onlineCount:[0],outlineCount:[0],projectCount:[0],name:['该区域下暂无更多分区,所以暂无数据']};
+
+    //设置区域报表参数
+    var _areacode=items_b1[0].areaCode,_areamsg1=items_z1.length,_areamsg2=items_z2[0].sublevelStatusRate.length;
+    //饼图1：开锁成功率总和
+    var myChart_b1 = echarts.init(document.getElementById('bin1'));
+
+    // 指定图表的配置项和数据
+    var option = {
+        title : {
+            text: items_b1[0].areaName,
+            subtext: '开锁成功率',
+            x:'center'
+        },
+        tooltip : {
+            trigger: 'item',
+            formatter: "{a} <br/>{b} : {c} ({d}%)"
+        },
+        toolbox: {
+            show : true,
+            right:30,
+            feature : {
+                myTool1: {
+                    show: true,
+                    title: '查看详细报表',
+                    icon: 'path://M31.008 27.231l-7.58-6.447c-0.784-0.705-1.622-1.029-2.299-0.998 1.789-2.096 2.87-4.815 2.87-7.787 0-6.627-5.373-12-12-12s-12 5.373-12 12 5.373 12 12 12c2.972 0 5.691-1.081 7.787-2.87-0.031 0.677 0.293 1.515 0.998 2.299l6.447 7.58c1.104 1.226 2.907 1.33 4.007 0.23s0.997-2.903-0.23-4.007zM12 20c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8zM14 6h-4v4h-4v4h4v4h4v-4h4v-4h-4z',
+                    onclick: function (){
+                        var code=_areacode,msg=_areamsg1;
+                        getlist(code,msg,'b1')
+                    }
+                } ,
+                saveAsImage : {show: true}
+            }
+        },
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: ['开锁成功','开锁失败']
+        },
+        series : [
+            {
+                name: '开锁次数',
+                type: 'pie',
+                radius : '55%',
+                center: ['50%', '60%'],
+                data:[
+                    {value:items_b1[0].successCount, name:'开锁成功'},
+                    {value:items_b1[0].failCount, name:'开锁失败'},
+                ],
+                itemStyle: {
+                    emphasis: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+    myChart_b1.setOption(option);
+
+    //柱图1：开锁成功率总细分
+    var myChart_z1 = echarts.init(document.getElementById('zhu1'));
+    var option = {
+        tooltip : {
+            trigger: 'axis',
+            axisPointer : {            // 坐标轴指示器，坐标轴触发有效
+                type : 'shadow'        // 默认为直线，可选为：'line' | 'shadow'
+            }
+        },
+        legend: {
+            data:['蓝牙锁成功','蓝牙锁失败','电子锁成功','电子锁失败'],
+            left:30
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '6%',
+            containLabel: true
+        },
+        toolbox: {
+            show : true,
+            right:30,
+            feature : {
+                magicType : {show: true, type: ['line', 'bar']},
+                myTool1: {
+                    show: true,
+                    title: '查看详细报表',
+                    icon: 'path://M31.008 27.231l-7.58-6.447c-0.784-0.705-1.622-1.029-2.299-0.998 1.789-2.096 2.87-4.815 2.87-7.787 0-6.627-5.373-12-12-12s-12 5.373-12 12 5.373 12 12 12c2.972 0 5.691-1.081 7.787-2.87-0.031 0.677 0.293 1.515 0.998 2.299l6.447 7.58c1.104 1.226 2.907 1.33 4.007 0.23s0.997-2.903-0.23-4.007zM12 20c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8zM14 6h-4v4h-4v4h4v4h4v-4h4v-4h-4z',
+                    onclick: function (){
+                        var code=_areacode,msg=_areamsg1;
+                        getlist(code,msg,'z1')
+                    }
+                } ,
+                saveAsImage : {show: true}
+            }
+        },
+        xAxis : [
+            {
+                type : 'category',
+                data : items_z1Arr.name,
+                axisLabel :{
+                    interval:0,rotate:-30
+                }
+            }
+        ],
+        yAxis : [
+            {
+                type : 'value'
+            }
+        ],
+
+        series : [
+            {
+                name:'蓝牙锁成功',
+                type:'bar',
+                stack:'bluetooth',
+                data:items_z1Arr.bluetoothSuccessCount
+            },
+            {
+                name:'蓝牙锁失败',
+                type:'bar',
+                stack: 'bluetooth',
+                data:items_z1Arr.bluetoothFailCount
+            },
+            {
+                name:'电子锁成功',
+                type:'bar',
+                stack: 'key',
+                data:items_z1Arr.keySuccessCount
+            },
+            {
+                name:'电子锁失败',
+                type:'bar',
+                stack: 'key',
+                data:items_z1Arr.keyFailCount
+            }
+        ]
+    };
+    myChart_z1.setOption(option);
+
+    //饼图2，门锁状态总和
+    var myChart_b2 = echarts.init(document.getElementById('bin2'));
+    var option = {
+        title : {
+            text: items_b2[0].areaName,
+            subtext: '门锁状态',
+            x:'center'
+        },
+        tooltip : {
+            trigger: 'item',
+            formatter: "{a} <br/>{b} : {c} ({d}%)"
+        },
+        toolbox: {
+            show : true,
+            right:30,
+            feature : {
+                myTool1: {
+                    show: true,
+                    title: '查看详细报表',
+                    icon: 'path://M31.008 27.231l-7.58-6.447c-0.784-0.705-1.622-1.029-2.299-0.998 1.789-2.096 2.87-4.815 2.87-7.787 0-6.627-5.373-12-12-12s-12 5.373-12 12 5.373 12 12 12c2.972 0 5.691-1.081 7.787-2.87-0.031 0.677 0.293 1.515 0.998 2.299l6.447 7.58c1.104 1.226 2.907 1.33 4.007 0.23s0.997-2.903-0.23-4.007zM12 20c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8zM14 6h-4v4h-4v4h4v4h4v-4h4v-4h-4z',
+                    onclick: function (){
+                        var code=_areacode,msg=_areamsg2;
+                        getlist(code,msg,'b2')
+                    }
+                } ,
+                saveAsImage : {show: true}
+            }
+        },
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: ['工程','上线','维修','退网']
+        },
+        series : [
+            {
+                name: '门锁状态',
+                type: 'pie',
+                radius : '55%',
+                center: ['50%', '60%'],
+                data:[
+                    {value:items_b2[0].projectCount, name:'工程'},
+                    {value:items_b2[0].onlineCount, name:'上线'},
+                    {value:items_b2[0].maintainCount, name:'维修'},
+                    {value:items_b2[0].outlineCount, name:'退网'}
+                ],
+                itemStyle: {
+                    emphasis: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+    myChart_b2.setOption(option);
+
+    //柱2细分数据
+    var myChart_z2 = echarts.init(document.getElementById('zhu2'));
+    var option = {
+        tooltip : {
+            trigger: 'axis',
+            axisPointer : {            // 坐标轴指示器，坐标轴触发有效
+                type : 'shadow'        // 默认为直线，可选为：'line' | 'shadow'
+            }
+        },
+        legend: {
+            data:['工程','上线','维修','退网'],
+            left:30
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '6%',
+            containLabel: true
+        },
+        toolbox: {
+            right:30,
+            show : true,
+            feature : {
+                magicType : {show: true, type: ['line', 'bar']},
+                myTool1: {
+                    show: true,
+                    title: '查看详细报表',
+                    icon: 'path://M31.008 27.231l-7.58-6.447c-0.784-0.705-1.622-1.029-2.299-0.998 1.789-2.096 2.87-4.815 2.87-7.787 0-6.627-5.373-12-12-12s-12 5.373-12 12 5.373 12 12 12c2.972 0 5.691-1.081 7.787-2.87-0.031 0.677 0.293 1.515 0.998 2.299l6.447 7.58c1.104 1.226 2.907 1.33 4.007 0.23s0.997-2.903-0.23-4.007zM12 20c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8zM14 6h-4v4h-4v4h4v4h4v-4h4v-4h-4z',
+                    onclick: function (){
+                        var code=_areacode,msg=_areamsg2;
+                        getlist(code,msg,'z2')
+                    }
+                } ,
+                saveAsImage : {show: true}
+            }
+        },
+        xAxis : [
+            {
+                type : 'category',
+                data : items_z2Arr.name,
+                axisLabel :{
+                    interval:0,rotate:-30
+                }
+            }
+        ],
+        yAxis : [
+            {
+                type : 'value'
+            }
+        ],
+
+        series : [
+            {
+                name:'工程',
+                type:'bar',
+                stack:'state',
+                data:items_z2Arr.projectCount
+            },
+            {
+                name:'上线',
+                type:'bar',
+                stack: 'state',
+                data:items_z2Arr.onlineCount
+            },
+            {
+                name:'维修',
+                type:'bar',
+                stack: 'state',
+                data:items_z2Arr.maintainCount
+            },
+            {
+                name:'退网',
+                type:'bar',
+                stack: 'state',
+                data:items_z2Arr.outlineCount
+            }
+        ]
+    };
+    myChart_z2.setOption(option);
+
+    //图表加载状态
+    function ALLchartload(){
+        myChart_b1.showLoading();
+        myChart_z1.showLoading();
+        myChart_b2.showLoading();
+        myChart_z2.showLoading();
+    }
+    //结束图表加载
+    function ALLchartshow(){
+        myChart_b1.hideLoading();
+        myChart_z1.hideLoading();
+        myChart_b2.hideLoading();
+        myChart_z2.hideLoading();
+    }
+
+    function changeview(){
+        gettime();
+        getarea();
+        ALLchartload();
+        $.ajax({
+            type: "post",
+            async: true,
+            url: "<%=basePath%>statement/searchMsg.do",
+            data: {"time":time,"starttime":starttime,"endtime":endtime,"areaCode":areaCode},
+            success: function(data) {
+                _areacode=data.areaAllRate[0].areaCode;
+                _areamsg1=data.areaRate.length;
+                _areamsg2=data.statusRate[0].sublevelStatusRate.length;
+                //数据处理
+                var items_z1Arr=_areamsg1>0 ? make_z1msg(data.areaRate) : _items_z1Arr;
+                var items_z2Arr=_areamsg2>0 ? make_z2msg(data.statusRate) : _items_z2Arr;
+                if(_areamsg1>0){var _axisLabel={interval:0,rotate:-30}}else{var _axisLabel={interval:0,rotate:0}};
+                // 饼1视图驱动
+                myChart_b1.setOption({
+                    title : {
+                        text:data.areaAllRate[0].areaName
+                    },
+                    series: {
+                        data:[
+                            {value:data.areaAllRate[0].successCount, name:'开锁成功'},
+                            {value:data.areaAllRate[0].failCount, name:'开锁失败'},
+                        ],
+                    }
+                });
+                //柱1视图驱动
+                myChart_z1.setOption({
+                    xAxis: {
+                        data : items_z1Arr.name,
+                        axisLabel : _axisLabel
+                    },
+                    series:[
+                        {
+                            data:items_z1Arr.bluetoothSuccessCount
+                        },
+                        {
+                            data:items_z1Arr.bluetoothFailCount
+                        },
+                        {
+                            data:items_z1Arr.keySuccessCount
+                        },
+                        {
+                            data:items_z1Arr.keyFailCount
+                        }
+                    ]
+                });
+                //饼2视图驱动
+                myChart_b2.setOption({
+                    title : {
+                        text:data.statusAllRate[0].areaName
+                    },
+                    series: {
+                        data:[
+                            {value:data.statusAllRate[0].projectCount, name:'工程'},
+                            {value:data.statusAllRate[0].onlineCount, name:'上线'},
+                            {value:data.statusAllRate[0].maintainCount, name:'维修'},
+                            {value:data.statusAllRate[0].outlineCount, name:'退网'}
+                        ],
+                    }
+                });
+                //柱2视图驱动
+                myChart_z2.setOption({
+                    xAxis: {
+                        data : items_z2Arr.name,
+                        axisLabel : _axisLabel
+                    },
+                    series: [
+                        {
+                            data:items_z2Arr.projectCount
+                        },
+                        {
+                            data:items_z2Arr.onlineCount
+                        },
+                        {
+                            data:items_z2Arr.maintainCount
+                        },
+                        {
+                            data:items_z2Arr.outlineCount
+                        }
+                    ]
+                });
+                ALLchartshow();
+            },
+            error: function(errorMsg) {
+                myChart.hideLoading();
+                alert("数据请求失败!");
+            }
+        });
+    }
+
+    //进入详细列表
+    function getlist(code,msg,type) {
+        gettime();
+        getarea();
+        if(msg==0){layer.msg('该区域下暂无更多分区', {time:2000});return false}
+        var _width=$(window).width()-200+'px',_height=$(window).height()-160+'px';
+        layer.open({
+            type: 2,
+            closeBtn:0,
+            title: '详细报表',
+            scrollbar: false,
+            shadeClose: true,
+            skin:'myborder',
+            maxmin: false, //开启最大化最小化按钮
+            area: [_width,_height],
+            content: ['<%=basePath%>statement/getAreaRate.do?code='+code+'&type='+type+'&time='+time+'&starttime='+starttime+'&endtime='+endtime]
+        });
+    }
+
+    //导出报表
+    $('#outexcel').click(function(){
+        var code=_areacode;
+        gettime();
+        getarea();
+        window.location.href='<%=basePath%>statement/toExcel.do?code='+code+'&time='+time+'&starttime='+starttime+'&endtime='+endtime+'&areaName='+encodeURI(encodeURI(areaName));
+    })
+    $('#outpdf').click(function(){
+        var code=_areacode;
+        gettime();
+        getarea();
+        window.location.href='<%=basePath%>statement/toPdf.do?code='+code+'&time='+time+'&starttime='+starttime+'&endtime='+endtime+'&areaName='+encodeURI(encodeURI(areaName));
+    })
+    //多图自适应屏幕大小
+    window.addEventListener("resize", function () {
+        myChart_z1.resize();
+        myChart_z2.resize();
+        myChart_b1.resize();
+        myChart_b2.resize();
+    });
+
+</script>
+</html>

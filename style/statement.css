@@ -1,0 +1,7 @@
+.bord{border:1px solid #5FB878;}
+.mychart_b1,.mychart_b2{width: 40%;height:400px;float:left;margin: 20px 2%}
+.mychart_z1,.mychart_z2{width: 54%;height:400px;float:left;margin: 20px 1%}
+.layui-layer-title{text-align: center;}
+.myborder>.layui-layer-content,.myborder>.layui-layer-content>iframe,.myborder,.myborder>.layui-layer-title{
+    border-radius:10px!important;
+}
