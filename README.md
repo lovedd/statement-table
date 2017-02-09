@@ -51,7 +51,20 @@
 
 #### 效果预览:
 ![](statement.gif)
-
+###### 思路简析:
+* 1.)确定样式，设置动态参数项，本例为时间和区域，样式用layui为参考.
+* 2.) 按需设置放置图标的视图区，本例共4个图表。
+* 3.) 对内容进行布局（css）
+* 4.) 通过echarts设置默认数据，在项目中首次加载将默认数据转化成json，按照不同图表需求转化成不同的数据格式。本例4条数据，写好数据转化函数（工厂模式）生成自己要的数据，配置到4个图表中，全部`setOption（option）`一下，生成图表。
+* 5.) 设置图表加载特效和结束加载特效。
+* 6.) 注册`layui`组件，写入日期和区域的监听事件（样式控制不多说）。日期可选日周月或时间区间，区域多级联动。
+* 7.) 每次筛选条件发生改变执行`gettime()`和`getarea()`获取最新条件，然后执行视图驱动`changeview()`和图标加载特效`ALLchartload()`，ajax获取最新数据，丢到工厂函数里跑跑再异步更新到视图，更新完毕执行`ALLchartshow()`结束加载特效。
+* 8.) 设置图表自适应屏幕大小.
+```js
+window.addEventListener("resize", function () {statement.resize();}
+```
+###### Tips：  
+* 参数可以按需自行添加或者修改，只要在changeview里加入新的参数返回后台即可，适合各种场景下的数据过滤视图化功能。
 ## table
 ###### 本篇需要一定vue基础，新手可以结合vue的文档查看。
 #### 原料:`Jquery.js` `bootstrap.js` `vue.js(1.x)`
@@ -92,6 +105,19 @@
 
 #### tips:
 * method里的事件按需增删,demo里的例子仅供参考,该例适合各类表格数据展现和操作.
+
+###### 思路简析:
+* 1.) 架好页面，检索头，表格，分页。
+* 2.) 获取数据，转化成json。
+* 3.) 创建vue实例，分配`data`(静态参数),`computed`(动态参数),`methods`(逻辑事件)
+* 4.) 渲染列表在循环渲染的过程中介入`fliterBy`用于检索,`orderby`排序,`limitBy`分页.  
+
+```html
+<tr v-for="item in items | filterBy searchs in mytrim | orderBy select order | limitBy size size*(page-1)" v-if="show">...</tr>
+```
+
+* 5.) 启用分页，在分页中写入跳页和每页显示条数事件。
+* 6.) 所有操作都是操作vue里的参数，自动更新dom。
 
 ## About 关于咖喱
 * [Github-Me](https://github.com/zogeli100)
