@@ -121,7 +121,8 @@ window.addEventListener("resize", function () {statement.resize();}
 
 ## About 关于咖喱
 * [Github-Me](https://github.com/zogeli100)
-* [QQ 418340696](https://zogeli100.github.io)
+* [My-blog](https://zogeli100.github.io)
+* [QQ 418340696]()
 
 #### **转载请注明出处**
 [https://github.com/zogeli100/statement-table](https://github.com/zogeli100/statement-table)
